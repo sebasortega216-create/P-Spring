@@ -6,6 +6,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.thebestadso.innovation.dto.HttpGlobalResponseDTO;
+import com.thebestadso.innovation.dto.LoginRequestDTO;
 import com.thebestadso.innovation.dto.LoginResponseDTO;
 import com.thebestadso.innovation.dto.RegisterRequestDTO;
 import com.thebestadso.innovation.dto.UserDTO;
@@ -39,6 +40,40 @@ public class AuthService {
      * Encriptación
      */
     private final PasswordEncoder passwordEncoder;
+
+    /**
+     * Método para iniciar sesión
+     *
+     * @param request usuario y contraseña
+     * @return jwt si las credenciales son correctas, de lo contrario data null
+     */
+    public HttpGlobalResponseDTO<LoginResponseDTO> login(LoginRequestDTO request) {
+        HttpGlobalResponseDTO<LoginResponseDTO> response = new HttpGlobalResponseDTO<>();
+
+        if (request.getUsername() == null || request.getPassword() == null) {
+            response.setMessage("Usuario y contraseña son obligatorios");
+            return response;
+        }
+
+        Optional<Users> userFound = userRepository.findByUsername(request.getUsername());
+
+        // Mismo mensaje si falla el usuario o la clave, para no dar pistas
+        if (userFound.isEmpty()
+                || !passwordEncoder.matches(request.getPassword(), userFound.get().getPassword())) {
+            response.setMessage("Usuario o contraseña incorrectos");
+            return response;
+        }
+
+        Users user = userFound.get();
+        String jwt = jwtService.generateToken(user.getId(), user.getUsername(), user.getRolId());
+
+        LoginResponseDTO login = new LoginResponseDTO();
+        login.setJwt(jwt);
+
+        response.setMessage("Login exitoso");
+        response.setData(login);
+        return response;
+    }
 
     /**
      * Método para refresco del token
